@@ -3,7 +3,7 @@ using namespace std;
 
 #define PRUNING 1
 
-class Growth : public Miner
+class MIWI : public Miner
 {
 protected:
     struct Node
@@ -51,11 +51,12 @@ protected:
     vector<Item> sorted_items;
     Node* tree;
     M_Node* min_tree;
-    Itemset pattern = Itemset(Transaction(new vector<int>), 0);
+    Itemset* pattern = DB->new_itemset(0);
     map<int, bool> pruned;
+    
 public:
-    Growth(TransactionDB* _db, float _ratio) : Miner(_db, _ratio) {}
-    ~Growth()
+    MIWI(TransactionDB* _db, float _ratio) : Miner(_db, _ratio) {}
+    ~MIWI()
     {
         delete_tree(tree);
         delete_tree(min_tree);
@@ -63,25 +64,26 @@ public:
     Node* build_tree()
     {
         Node* root = new Node(NULL, -1, -1);
-        for (vector<Transaction>::iterator i = DB->db.begin(); i != DB->db.end(); i++)
+        for (vector<Itemset*>::iterator i = DB->db.begin(); i != DB->db.end(); i++)
         {
-            //insert_tree(root, &items, i->tids, 1);
-            insert_tree(root, sorted_items, i->tids, 1);
+            // do not delete this comment
+            //insert_tree(root, &items, (*i)->get_tids(), 1);
+            insert_tree(root, sorted_items, (*i)->get_tids(), 1);
         }
         return root;
     }
-    void print_form(map<int, Item>* form)
+    void print_form(map<int, Item>& form)
     {
-        for (map<int, Item>::iterator i = form->begin(); i != form->end(); i++)
+        for (map<int, Item>::iterator i = form.begin(); i != form.end(); i++)
         {
             printf("%d %d\n", i->first, i->second.support);
         }
     }
-    bool insert_min_tree(M_Node* temp, vector<int>* tids, vector<int>::iterator v)
+    bool insert_min_tree(M_Node* temp, vector<int>& tids, vector<int>::iterator v)
     {
         bool children_covered = false;
         vector<int>::iterator i = temp->path.begin();
-        while (i != temp->path.end() && v != tids->end() && *i == *v)
+        while (i != temp->path.end() && v != tids.end() && *i == *v)
         {
             v++;i++;
         }
@@ -117,30 +119,30 @@ public:
                     temp->path.pop_back();
                 }
             }
-            M_Node* t1 = new M_Node(v, tids->end());
+            M_Node* t1 = new M_Node(v, tids.end());
             temp->children.push_back(t1);
         }
         return true;
     }
-    bool check_minimal(vector<int>* tids)
+    bool check_minimal(const vector<int>& tids)
     {
         vector<int> ranks;
-        for (vector<int>::iterator i = tids->begin(); i != tids->end(); i++)
+        for (vector<const int>::iterator i = tids.begin(); i != tids.end(); i++)
         {
             ranks.push_back(DB->rank[*i]); //put rank in here
         }
         reverse(ranks.begin(), ranks.end()); // dual is ok. if not reverse here then just reverse the corresponding inequation in check_min_tree
-        if (!check_min_tree(min_tree, &ranks, ranks.begin()))
+        if (!check_min_tree(min_tree, ranks, ranks.begin()))
         {
-            insert_min_tree(min_tree, &ranks, ranks.begin());
+            insert_min_tree(min_tree, ranks, ranks.begin());
             return true;
         }
         return false;
     }
-    bool check_min_tree(M_Node* temp, vector<int>* tids, vector<int>::iterator v)
+    bool check_min_tree(M_Node* temp, vector<int>& tids, vector<int>::iterator v)
     {
         vector<int>::iterator i = temp->path.begin();
-        while (i != temp->path.end() && v != tids->end())
+        while (i != temp->path.end() && v != tids.end())
         {
             if (*i < *v)
             {
@@ -162,9 +164,9 @@ public:
         }
         return false;
     }
-    void insert_tree(Node* temp, map<int, Item>* form, vector<int>* tids, int count)
+    void insert_tree(Node* temp, map<int, Item>* form, const vector<int>& tids, int count)
     {
-        for (vector<int>::iterator j = tids->begin(); j != tids->end(); j++)
+        for (vector<const int>::iterator j = tids.begin(); j != tids.end(); j++)
         {
             map<int, Node*>::iterator k = temp->children.find(*j);
             if (k == temp->children.end())
@@ -181,9 +183,9 @@ public:
             }
         }
     }
-    void insert_tree(Node* temp, vector<Item>& sorted_form, vector<int>* tids, int count)
+    void insert_tree(Node* temp, vector<Item>& sorted_form, const vector<int>& tids, int count)
     {
-        for (vector<int>::iterator j = tids->begin(); j != tids->end(); j++)
+        for (vector<const int>::iterator j = tids.begin(); j != tids.end(); j++)
         {
             map<int, Node*>::iterator k = temp->children.find(*j);
             if (k == temp->children.end())
@@ -218,17 +220,17 @@ public:
         }
         delete temp;
     }
-    void dig_tree(Node* root, map<int, Item>* form)
+    void dig_tree(Node* root, map<int, Item>& form)
     {
-        for (map<int, Item>::iterator i = form->begin(); i != form->end(); i++)
+        for (map<int, Item>::iterator i = form.begin(); i != form.end(); i++)
         {
-            if (form->size() == DB->dim()) {printf("%ld/%ld %lus\n", distance(form->begin(), i), form->size(), (clock()-miner_begin)/CLOCKS_PER_SEC);}
-            pattern.itemset.tids->push_back(i->first);
-            pattern.support = i->second.support;
-            if (pattern.support < threshold)
+            if (form.size() == DB->dim()) {printf("%ld/%ld %lus\n", distance(form.begin(), i), form.size(), (clock()-miner_begin)/CLOCKS_PER_SEC);}
+            pattern->add_item(i->first);
+            pattern->support = i->second.support;
+            if (pattern->support < threshold)
             {
-                MII->push_back(Itemset(pattern, DB_type::VECTOR));
-                pattern.itemset.tids->pop_back();
+                MII.push_back(new Itemset_VECTOR(pattern));
+                pattern->delete_item();
                 continue;
             }
             map<int, Item> next_form;
@@ -241,18 +243,18 @@ public:
             for (vector<Node*>::iterator j = i->second.link.begin(); j != i->second.link.end(); j++)
             {
                 Node* temp = (*j)->father;
-                vector<int>* tids = new vector<int>;
+                vector<int> tids;
                 while (temp->father != NULL)
                 {
-                    tids->push_back(temp->item);
+                    tids.push_back(temp->item);
                     next_form[temp->item].support += (*j)->count;
                     temp = temp->father;
                 }
-                reverse(tids->begin(), tids->end());
-                insert_tree(next_root, &next_form, tids, (*j)->count);
+                reverse(tids.begin(), tids.end());
+                insert_tree(next_root, &next_form, (const vector<int>) tids, (*j)->count);
             }
-            dig_tree(next_root, &next_form);
-            pattern.itemset.tids->pop_back();
+            dig_tree(next_root, next_form);
+            pattern->delete_item();
             delete_tree(next_root);
         }
     }
@@ -305,13 +307,13 @@ public:
             if (pruned[item]) {continue;}
 #endif
             if (depth == 0) {printf("%ld/%ld %.3fs\n", distance(form.begin(), i), form.size(), float(clock()-miner_begin)/CLOCKS_PER_SEC);}
-            pattern.itemset.tids->push_back(item);
-            pattern.support = i->support;
-            if (pattern.support < threshold)
+            pattern->add_item(item);
+            pattern->support = i->support;
+            if (pattern->support < threshold)
             {
-                if (true)//check_minimal(pattern.itemset.tids))
+                if (check_minimal(pattern->get_tids()))
                 {
-                    MII->push_back(Itemset(pattern, DB_type::VECTOR));
+                    MII.push_back(new Itemset_VECTOR(pattern));
                     //DB->print_itemset(pattern);
                 }
 //                else
@@ -319,7 +321,7 @@ public:
 //                    printf("non-minimal: ");
 //                    DB->print_itemset(pattern);
 //                }
-                pattern.itemset.tids->pop_back();
+                pattern->delete_item();
                 continue;
             }
             vector<Item> next_form;
@@ -359,7 +361,7 @@ public:
 #endif
             //print_form(&next_form);
             dig_tree_stack(depth+1, next_form);
-            pattern.itemset.tids->pop_back();
+            pattern->delete_item();
 #if PRUNING
             for (vector<int>::iterator j = pruned_items.begin(); j != pruned_items.end(); j++)
             {
@@ -383,14 +385,14 @@ public:
     void antichain()
     {
         clock_t t_begin = clock();
-        long average_len = 0, minimal_num = 0, set_num = MII->size();
-        for (vector<Itemset>::iterator i = MII->begin(); i != MII->end(); i++)
+        long average_len = 0, minimal_num = 0, set_num = MII.size();
+        for (vector<Itemset*>::iterator i = MII.begin(); i != MII.end(); i++)
         {
-            if (check_minimal(i->itemset.tids))
+            if (check_minimal((*i)->get_tids()))
             {
                 minimal_num += 1;
             }
-            average_len += i->itemset.tids->size();
+            average_len += (*i)->get_tids().size();
         }
         printf("set_num: %ld minimal_num: %ld average_len: %.4f time: %.4f s\n", set_num, minimal_num, float(average_len)/float(set_num), float(clock()-t_begin)/CLOCKS_PER_SEC);
     }
@@ -404,11 +406,10 @@ public:
             pruned.insert(pair<int, bool>(i->first, false));
         }
         tree = build_tree();
-        //printf("build tree done.\n");
-        MII = new vector<Itemset>;
+        printf("build tree done.\n");
         min_tree = new M_Node();
         dig_tree_stack(0, sorted_items);
-        antichain();
-        //dig_tree(tree, &items);
+        //dig_tree(tree, items);
+        //antichain();
     }
 };

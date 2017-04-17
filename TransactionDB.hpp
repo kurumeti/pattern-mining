@@ -4,6 +4,7 @@
 #include <map>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/bimap.hpp>
+#include "Itemset.hpp"
 
 using namespace std;
 using namespace boost;
@@ -11,49 +12,10 @@ using namespace boost;
 enum DB_type {VECTOR, BITSET, SUB};
 enum SORT_type {ASC, DSC, DICT, NONE};
 
-union Transaction
-{
-    vector<int>* tids = NULL;
-    dynamic_bitset<>* bt;
-    Transaction(vector<int>* _tids)
-    {
-        tids = _tids;
-    }
-    Transaction(dynamic_bitset<>* _bt)
-    {
-        bt = _bt;
-    }
-    Transaction() {}
-};
-
-struct Itemset
-{
-    Transaction itemset;
-    int support;
-    Itemset(Transaction _itemset, int _support)
-    {
-        itemset = _itemset;
-        support = _support;
-    }
-    Itemset(Itemset const &a, DB_type type)
-    {
-        switch (type)
-        {
-            case VECTOR: 
-                support = a.support;
-                itemset = Transaction(new vector<int>(*(a.itemset.tids)));
-                break;
-            default:
-                break;
-        }
-    }
-};
-
 class TransactionDB
 {
 private:
     SORT_type sort_type;
-    //unsigned long items_num = 0;
     bimap<int,int> item_bitpos;
     
 public:
@@ -61,144 +23,79 @@ public:
     map<int,int> items;
     vector<pair<int,int>> sorted_items;
     map<int, int> rank;
-    vector<Transaction> db;
-    
-    long position(int item)
+    vector<Itemset*> db;
+
+    int position(int item)
     {
         return item_bitpos.left.at(item);
     }
-    dynamic_bitset<>* item2bt(int item)
-    {
-        dynamic_bitset<>* bt = new dynamic_bitset<>(items.size());
-        bt->set(position(item), 1);
-        return bt;
-    }
-    void print_itemset_fault(pair<Itemset,int> i)
-    {
-        printf("true %d ", i.second);
-        print_itemset(i.first);
-    }
-    void print_itemset(Itemset& i)
-    {
-        printf("support %d :", i.support);
-        vector<int> vi;
-        switch (db_type)
-        {
-            case BITSET:
-                vi = bt2vt(i.itemset.bt);
-                break;
-            case VECTOR:
-                vi = *(i.itemset.tids);
-                break;
-            default:
-                break;
-        }
-        for (vector<int>::iterator j = vi.begin(); j != vi.end(); j++)
-        {
-            printf(" %d", *j);
-        }
-        printf("\n");
-    }
-    bool validate(vector<Itemset>* MII)
+    bool validate(vector<Itemset*> & MII) const
     {
         bool valid = true;
-        for (vector<Itemset>::iterator i = MII->begin(); i != MII->end(); i++)
+        for (vector<Itemset*>::iterator i = MII.begin(); i != MII.end(); i++)
         {
-            for (vector<Itemset>::iterator j = MII->begin(); j != MII->end(); j++)
+            for (vector<Itemset*>::iterator j = MII.begin(); j != MII.end(); j++)
             {
                 if (i == j) {continue;}
-                bool minimal = true;
-                switch (db_type)
-                {
-                    case VECTOR:
-                    {
-                        vector<int>::iterator ii = i->itemset.tids->begin(), jj = j->itemset.tids->begin();
-                        for (; ii != i->itemset.tids->end() && jj != j->itemset.tids->end(); ii++)
-                        {
-                            if (*ii == *jj)
-                            {
-                                jj++;
-                            }
-                        }
-                        if (jj == j->itemset.tids->end())
-                        {
-                            minimal = false;
-                        }
-                        break;
-                    }
-                    case BITSET:
-                        if (j->itemset.bt->is_subset_of(*(i->itemset.bt)))
-                        {
-                            minimal = false;
-                        }
-                        break;
-                    default:
-                        break;
-                }
-                if (!minimal)
+                if ((*j)->is_subset_of(*i))
                 {
                     valid = false;
                     printf("not minimal: ");
-                    print_itemset(*i);
+                    (*i)->print_self();
                     printf("covered: ");
-                    print_itemset(*j);
+                    (*j)->print_self();
                 }
             }
         }
         return valid;
     }
-    void validate(vector<pair<Itemset,int>>* itemsets)
+    vector<Itemset*> filter_non_minimal(vector<Itemset*> & MII) const
+    {
+        vector<Itemset*> result;
+        for (vector<Itemset*>::iterator i = MII.begin(); i != MII.end(); i++)
+        {
+            bool valid = true;
+            for (vector<Itemset*>::iterator j = MII.begin(); j != MII.end(); j++)
+            {
+                if (i == j) {continue;}
+                if ((*j)->is_subset_of(*i))
+                {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid)
+            {
+                result.push_back(*i);
+            }
+        }
+        return result;
+    }
+    void validate(vector<pair<Itemset*,int>> & itemsets)
     {
         if (db_type == VECTOR)
         {
-            for (vector<pair<Itemset,int>>::iterator j = itemsets->begin(); j != itemsets->end(); j++)
+            for (vector<pair<Itemset*,int>>::iterator j = itemsets.begin(); j != itemsets.end(); j++)
             {
-                reverse(j->first.itemset.tids->begin(), j->first.itemset.tids->end());
+                j->first->reverse_self();
             }
         }
-        for (vector<Transaction>::iterator i = db.begin(); i != db.end(); i++)
+        for (vector<Itemset*>::iterator i = db.begin(); i != db.end(); i++)
         {
-            for (vector<pair<Itemset,int>>::iterator j = itemsets->begin(); j != itemsets->end(); j++)
+            for (vector<pair<Itemset*,int>>::iterator j = itemsets.begin(); j != itemsets.end(); j++)
             {
-                switch (db_type)
+                if (j->first->is_subset_of(*i))
                 {
-                    case BITSET:
-                        if (j->first.itemset.bt->is_subset_of(*(i->bt)))
-                        {
-                            j->second += 1;
-                        }
-                        break;
-                    case VECTOR:
-                    {
-                        vector<int>::iterator p1 = j->first.itemset.tids->begin(), p2 = i->tids->begin();
-                        for (; p1 != j->first.itemset.tids->end() && p2 != i->tids->end(); p2++)
-                        {
-                            if (j->first.itemset.tids->end() - p1 > i->tids->end() - p2)
-                            {
-                                break;
-                            }
-                            if (*p1 == *p2)
-                            {
-                                p1++;
-                            }
-                        }
-                        if (p1 == j->first.itemset.tids->end())
-                        {
-                            j->second += 1;
-                        }
-                        break;
-                    }
-                    default:
-                        break;
+                    j->second += 1;
                 }
             }
         }
     }
-    void count_items(vector<int>* t)
+    void count_items(stringstream& ss)
     {
-        for (vector<int>::iterator i = t->begin(); i != t->end();i++)
+        int item;
+        while (ss >> item)
         {
-            int item = *i;
             if (items.find(item) == items.end())
             {
                 items[item] = 1;
@@ -208,42 +105,39 @@ public:
                 items[item] += 1;
             }
         }
-        //items_num = items.size();
     }
-    void input_vector(vector<int>* tids)
+    Itemset* new_itemset(int support = 1, int item = -1) // no item can have id -1
     {
-        count_items(tids);
-        Transaction t(tids);
-        db.push_back(t);
-    }
-    dynamic_bitset<>* vt2bt(vector<int>* tids)
-    {
-        dynamic_bitset<>* bt = new dynamic_bitset<>(items.size());
-        for (vector<int>::iterator i = tids->begin(); i != tids->end();i++)
+        Itemset* temp = NULL;
+        switch (db_type)
         {
-            bt->set(position(*i), 1);
+            case VECTOR:
+                temp = new Itemset_VECTOR();
+                break;
+            case BITSET:
+                temp = new Itemset_BITSET(item_bitpos);
+                break;
+            default:
+                break;
         }
-        return bt;
-    }
-    vector<int> bt2vt(dynamic_bitset<>* bt)
-    {
-        vector<int> tids;
-        for (int i = 0; i < bt->size(); i++)
+        if (item != -1)
         {
-            if ((*bt)[i] == 1)
-            {
-                tids.push_back(item_bitpos.right.at(i));
-            }
+            temp->add_item(item);
         }
-        return tids;
+        temp->support = support;
+        return temp;
     }
-    void input_bitset(vector<int>* tids)
+    void input_itemset(stringstream& ss)
     {
-        Transaction t(vt2bt(tids));
-        db.push_back(t);
-        delete tids;
+        Itemset* temp = new_itemset();
+        int item;
+        while (ss >> item)
+        {
+            temp->add_item(item);
+        }
+        db.push_back(temp);
     }
-    void read_file(const char* filepath, void (TransactionDB::*f)(vector<int>*))
+    void read_file(const char* filepath, void (TransactionDB::*f)(stringstream&))
     {
         if (freopen(filepath, "r", stdin) == nullptr)
         {
@@ -251,18 +145,10 @@ public:
             exit(EXIT_FAILURE);
         }
         string line;
-        while (true)
+        while (getline(cin, line))
         {
-            getline(cin, line);
-            stringstream stream(line);
-            int item;
-            vector<int>* t = new vector<int>;
-            while (stream >> item)
-            {
-                t->push_back(item);
-            }
-            if (t->empty()) {break;}
-            (this->*f)(t);
+            stringstream ss(line);
+            (this->*f)(ss);
         }
         cin.clear();
         fclose(stdin);
@@ -310,9 +196,9 @@ public:
     }
     void sort_each_transaction()
     {
-        for (vector<Transaction>::iterator i = db.begin(); i != db.end(); i++)
+        for (vector<Itemset*>::iterator i = db.begin(); i != db.end(); i++)
         {
-            stable_sort(i->tids->begin(), i->tids->end(), [this](const int& a, const int& b)
+            (*i)->sort_self([this](const int& a, const int& b) -> bool
             {
                 switch (this->sort_type)
                 {
@@ -342,19 +228,19 @@ public:
     {
         db_type = _db_type;
         sort_type = _sort_type;
+        read_file(filepath, &TransactionDB::count_items);
         switch (db_type)
         {
             case VECTOR:
-                read_file(filepath, &TransactionDB::input_vector);
+                read_file(filepath, &TransactionDB::input_itemset);
                 gen_sorted_items();
                 sort_each_transaction();
                 gen_rank();
                 break;
             case BITSET:
-                read_file(filepath, &TransactionDB::count_items);
                 gen_sorted_items();
                 gen_item_bitpos();
-                read_file(filepath, &TransactionDB::input_bitset);
+                read_file(filepath, &TransactionDB::input_itemset);
                 break;
             default:
                 break;
@@ -366,13 +252,12 @@ public:
         db_type = SUB;
         sort_type = root->sort_type;
         db.reserve(D->size()/D->dim());
-        for (vector<Transaction>::iterator i = D->db.begin(); i != D->db.end(); i++)
+        for (vector<Itemset*>::iterator i = D->db.begin(); i != D->db.end(); i++)
         {
-            if ((*(i->bt))[root->position(item)] == 1)
+            if ((*i)->has_item(item))
             {
                 db.push_back(*i);
-                vector<int> tids = root->bt2vt(i->bt);
-                count_items(&tids);
+                (*i)->count_items(items);
             }
         }
         for (map<int,int>::iterator i = root->items.begin(); i != root->items.end(); i++) // generate 0-support items
@@ -387,20 +272,11 @@ public:
     }
     ~TransactionDB()
     {
-        for (vector<Transaction>::iterator i = db.begin(); i != db.end();i++)
+        if (db_type != SUB)
         {
-            switch (db_type)
+            for (vector<Itemset*>::iterator i = db.begin(); i != db.end();i++)
             {
-                case VECTOR:
-                    delete i->tids;
-                    break;
-                case BITSET:
-                    delete i->bt;
-                    break;
-                case SUB:
-                    break;
-                default:
-                    break;
+                delete *i;
             }
         }
     }
