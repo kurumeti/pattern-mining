@@ -229,9 +229,9 @@ public:
             pattern->support = i->second.support;
             if (pattern->support < threshold)
             {
-                MII.push_back(new Itemset_VECTOR(pattern));
+                result.push_back(new Itemset_VECTOR(pattern));
                 pattern->delete_item();
-                continue;
+                //continue;
             }
             map<int, Item> next_form;
             Node* next_root = new Node(NULL, -1, -1);
@@ -313,7 +313,7 @@ public:
             {
                 if (check_minimal(pattern->get_tids()))
                 {
-                    MII.push_back(new Itemset_VECTOR(pattern));
+                    result.push_back(new Itemset_VECTOR(pattern));
                     //DB->print_itemset(pattern);
                 }
 //                else
@@ -385,8 +385,8 @@ public:
     void antichain()
     {
         clock_t t_begin = clock();
-        long average_len = 0, minimal_num = 0, set_num = MII.size();
-        for (vector<Itemset*>::iterator i = MII.begin(); i != MII.end(); i++)
+        long average_len = 0, minimal_num = 0, set_num = result.size();
+        for (vector<Itemset*>::iterator i = result.begin(); i != result.end(); i++)
         {
             if (check_minimal((*i)->get_tids()))
             {

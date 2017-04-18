@@ -18,7 +18,7 @@ public:
     {
         Miner::mine();
         vector<bool> V(DB->dim(), true);
-        MII = minit(DB, V, max_c);
+        result = minit(DB, V, max_c);
     }
     vector<Itemset*> minit(TransactionDB* D, vector<bool> & V, int max_c)
     {
