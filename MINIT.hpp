@@ -2,7 +2,6 @@
 #include <vector>
 #include <map>
 #include <boost/dynamic_bitset.hpp>
-#include "Miner.hpp"
 
 using namespace std;
 using namespace boost;
