@@ -15,7 +15,7 @@ enum SORT_type {ASC, DSC, DICT, NONE};
 class TransactionDB
 {
 private:
-    SORT_type sort_type;
+    //SORT_type sort_type;
     bimap<int,int> item_bitpos;
     
 public:
@@ -24,12 +24,13 @@ public:
     vector<pair<int,int>> sorted_items;
     map<int, int> rank;
     vector<Itemset*> db;
+    function<bool(const int&,const int&)> sort_method;
 
     int position(int item)
     {
         return item_bitpos.left.at(item);
     }
-    bool validate(vector<Itemset*> & MII) const
+    bool validate_min(vector<Itemset*> & MII) const
     {
         bool valid = true;
         for (vector<Itemset*>::iterator i = MII.begin(); i != MII.end(); i++)
@@ -43,6 +44,26 @@ public:
                     printf("not minimal: ");
                     (*i)->print_self();
                     printf("covered: ");
+                    (*j)->print_self();
+                }
+            }
+        }
+        return valid;
+    }
+    bool validate_max(vector<Itemset*> & MFI) const
+    {
+        bool valid = true;
+        for (vector<Itemset*>::iterator i = MFI.begin(); i != MFI.end(); i++)
+        {
+            for (vector<Itemset*>::iterator j = MFI.begin(); j != MFI.end(); j++)
+            {
+                if (i == j) {continue;}
+                if ((*i)->is_subset_of(*j))
+                {
+                    valid = false;
+                    printf("not maximal: ");
+                    (*i)->print_self();
+                    printf("covered by: ");
                     (*j)->print_self();
                 }
             }
@@ -73,13 +94,6 @@ public:
     }
     void validate(vector<pair<Itemset*,int>> & itemsets)
     {
-        if (db_type == VECTOR)
-        {
-            for (vector<pair<Itemset*,int>>::iterator j = itemsets.begin(); j != itemsets.end(); j++)
-            {
-                j->first->reverse_self();
-            }
-        }
         for (vector<Itemset*>::iterator i = db.begin(); i != db.end(); i++)
         {
             for (vector<pair<Itemset*,int>>::iterator j = itemsets.begin(); j != itemsets.end(); j++)
@@ -157,9 +171,26 @@ public:
     {
         return int(items.size());
     }
-    long size()
+    int size()
     {
-        return db.size();
+        return int(db.size());
+    }
+    void set_sort_method(SORT_type sort_type)
+    {
+        switch (sort_type)
+        {
+            case ASC:
+                sort_method = [this](const int& a, const int& b) {return this->items[a] == this->items[b] ? a < b : this->items[a] < this->items[b];};
+                break;
+            case DSC:
+                sort_method = [this](const int& a, const int& b) {return this->items[a] == this->items[b] ? a < b : this->items[a] > this->items[b];};
+                break;
+            case DICT:
+                sort_method = [this](const int& a, const int& b) {return a < b;};
+                break;
+            default:
+                break;
+        }
     }
     void gen_sorted_items()
     {
@@ -167,24 +198,10 @@ public:
         {
             sorted_items.push_back(*i);
         }
-        if (sort_type == NONE) {return;}
+        //if (sort_type == NONE) {return;}
         stable_sort(sorted_items.begin(), sorted_items.end(), [this](pair<int,int> const& a, pair<int,int> const& b)
         {
-            switch (this->sort_type)
-            {
-                case ASC:
-                    return a.second < b.second;
-                    break;
-                case DSC:
-                    return a.second > b.second;
-                    break;
-                case DICT:
-                    return a.first < b.first;
-                    break;
-                default:
-                    return a.first < b.first;
-                    break;
-            }
+            return this->sort_method(a.first, b.first);
         });
     }
     void gen_item_bitpos()
@@ -198,23 +215,7 @@ public:
     {
         for (vector<Itemset*>::iterator i = db.begin(); i != db.end(); i++)
         {
-            (*i)->sort_self([this](const int& a, const int& b) -> bool
-            {
-                switch (this->sort_type)
-                {
-                    case ASC:
-                        return this->items[a] < this->items[b];
-                        break;
-                    case DSC:
-                        return this->items[a] > this->items[b];
-                        break;
-                    case DICT:
-                        return a < b;
-                        break;
-                    default:
-                        return a < b;
-                }
-            });
+            (*i)->sort_self(sort_method);
         }
     }
     void gen_rank()
@@ -224,20 +225,45 @@ public:
             rank[i->first] = int(i-sorted_items.begin());
         }
     }
-    TransactionDB(const char* filepath, DB_type _db_type, SORT_type _sort_type)
+    deque<pair<Itemset_VERTICAL_UNIT*,int>> get_item_units()
+    {
+        deque<pair<Itemset_VERTICAL_UNIT*,int>> tail;
+        map<int, dynamic_bitset<>> item2transactions;
+        for (map<int,int>::iterator i = items.begin(); i != items.end(); i++)
+        {
+            dynamic_bitset<> transactions(this->size());
+            transactions.reset();
+            item2transactions[i->first] = transactions;
+        }
+        for (vector<Itemset*>::iterator i = db.begin(); i != db.end(); i++)
+        {
+            const vector<int> & tids = (*i)->get_tids();
+            for (vector<const int>::iterator j = tids.begin(); j != tids.end(); j++)
+            {
+                item2transactions[*j].set(i-db.begin());
+            }
+        }
+        for (map<int, dynamic_bitset<>>::iterator i = item2transactions.begin(); i != item2transactions.end(); i++)
+        {
+            tail.push_back(pair<Itemset_VERTICAL_UNIT*,int>(new Itemset_VERTICAL_UNIT(i->first, i->second),0));
+        }
+        return tail;
+    }
+    TransactionDB(const char* filepath, DB_type _db_type)
     {
         db_type = _db_type;
-        sort_type = _sort_type;
         read_file(filepath, &TransactionDB::count_items);
         switch (db_type)
         {
             case VECTOR:
+                set_sort_method(SORT_type::DSC);
                 read_file(filepath, &TransactionDB::input_itemset);
                 gen_sorted_items();
                 sort_each_transaction();
                 gen_rank();
                 break;
             case BITSET:
+                set_sort_method(SORT_type::ASC);
                 gen_sorted_items();
                 gen_item_bitpos();
                 read_file(filepath, &TransactionDB::input_itemset);
@@ -250,7 +276,7 @@ public:
     TransactionDB(TransactionDB* root, TransactionDB* D, int item)
     {
         db_type = SUB;
-        sort_type = root->sort_type;
+        sort_method = root->sort_method;
         db.reserve(D->size()/D->dim());
         for (vector<Itemset*>::iterator i = D->db.begin(); i != D->db.end(); i++)
         {
