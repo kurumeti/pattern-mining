@@ -103,6 +103,7 @@ public:
             if (max_tree->check_maximal(head.get_tids(), DB))
             {
                 result.push_back(new Itemset_VERTICAL(head));
+                result.back()->sort_self(DB->sort_method);
                 printf("%ld %lus\n", result.size(), (clock()-miner_begin)/CLOCKS_PER_SEC);
                 //head.print_self();
             }
