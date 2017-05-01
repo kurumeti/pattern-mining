@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <vector>
 #include <map>
+#include "MTree.hpp"
 
 using namespace std;
 
@@ -10,36 +11,36 @@ protected:
     clock_t miner_begin;
     TransactionDB* DB;
     int threshold = 1;
-    vector<Itemset*> MII;
+    vector<Itemset*> result;
 public:
     Miner(){}
     Miner(TransactionDB* _db, float _ratio) : DB(_db), threshold(_ratio * _db->size()) {}
     virtual ~Miner()
     {
-        for (vector<Itemset*>::iterator i = MII.begin(); i != MII.end(); i++)
+        for (vector<Itemset*>::iterator i = result.begin(); i != result.end(); i++)
         {
             delete *i;
         }
     }
     void print_result()
     {
-        for (vector<Itemset*>::iterator i = MII.begin(); i != MII.end(); i++)
+        for (vector<Itemset*>::iterator i = result.begin(); i != result.end(); i++)
         {
             (*i)->print_self();
         }
     }
     virtual void mine()
     {
-        MII.clear();
+        result.clear();
         miner_begin = clock();
     }
-    bool check()
+    virtual bool check()
     {
-        printf("Miner done. MIIs num: %ld\nEnter any key to validate result...\n", MII.size());
+        printf("Miner done. result num: %ld\nEnter any key to validate result...\n", result.size());
         cin.get();
         bool valid = true;
         vector<pair<Itemset*,int>> itemsets;
-        for (vector<Itemset*>::iterator i = MII.begin(); i != MII.end(); i++)
+        for (vector<Itemset*>::iterator i = result.begin(); i != result.end(); i++)
         {
             itemsets.push_back(pair<Itemset*,int>(*i,0));
         }
@@ -59,6 +60,6 @@ public:
                 i->first->print_self();
             }
         }
-        return (valid && DB->validate(MII));
+        return (valid && DB->validate_min(result));
     }
 };
