@@ -10,7 +10,6 @@ using namespace boost;
 
 class Itemset
 {
-    static const vector<int> & NONE; //so ugly...
     
 public:
     int support = 1;
@@ -28,7 +27,7 @@ public:
 
 class Itemset_VECTOR : public Itemset
 {
-private:
+protected:
     vector<int> tids;
     
 public:
@@ -137,5 +136,35 @@ public:
                 }
             }
         }
+    }
+};
+
+class Itemset_VERTICAL : public Itemset_VECTOR
+{
+public:
+    Itemset_VERTICAL() {}
+    dynamic_bitset<> transactions;
+    Itemset_VERTICAL(int transaction_num)
+    {
+        transactions = dynamic_bitset<>(transaction_num);
+        transactions.set();
+        support = transaction_num;
+    }
+    Itemset_VERTICAL(Itemset_VERTICAL & itemset)
+    {
+        tids = itemset.tids;
+        transactions = itemset.transactions;
+        support = itemset.support;
+    }
+};
+
+class Itemset_VERTICAL_UNIT : public Itemset_VERTICAL
+{
+public:
+    int item;
+    Itemset_VERTICAL_UNIT(int _item, dynamic_bitset<> _transactions)
+    {
+        item = _item;
+        transactions = _transactions;
     }
 };
