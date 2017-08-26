@@ -151,11 +151,11 @@ public:
         }
         db.push_back(temp);
     }
-    void read_file(const char* filepath, void (TransactionDB::*f)(stringstream&))
+    void read_file(string filepath, void (TransactionDB::*f)(stringstream&))
     {
-        if (freopen(filepath, "r", stdin) == nullptr)
+        if (freopen(filepath.c_str(), "r", stdin) == nullptr)
         {
-            printf("error when opening %s\n", filepath);
+            printf("error when opening %s\n", filepath.c_str());
             exit(EXIT_FAILURE);
         }
         string line;
@@ -249,7 +249,7 @@ public:
         }
         return tail;
     }
-    TransactionDB(const char* filepath, DB_type _db_type)
+    TransactionDB(string filepath, DB_type _db_type)
     {
         db_type = _db_type;
         read_file(filepath, &TransactionDB::count_items);
