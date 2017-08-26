@@ -22,6 +22,7 @@ public:
     virtual bool has_item(int) const {return false;}
     virtual void count_items(map<int,int> & items) const {}
     virtual void delete_item() {}
+    virtual void write_self(ofstream&) const {}
     virtual const vector<int> & get_tids() const {return get_tids();} // this is so ugly...
 };
 
@@ -45,12 +46,21 @@ public:
     }
     void print_self() const
     {
-        printf("support %d :", support);
+        printf("%d:", support);
         for (vector<const int>::iterator i = tids.begin(); i != tids.end(); i++)
         {
             printf(" %d", *i);
         }
         printf("\n");
+    }
+    void write_self(ofstream & output) const
+    {
+        output << support << ":";
+        for (vector<const int>::iterator i = tids.begin(); i != tids.end(); i++)
+        {
+            output << " " << *i;
+        }
+        output << endl;
     }
     bool is_subset_of(Itemset* b) const
     {
