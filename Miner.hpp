@@ -13,7 +13,9 @@ protected:
     int threshold = 1;
     vector<Itemset*> result;
 public:
+    bool verbose = false;
     Miner(){}
+    Miner(TransactionDB* _db, int _threshold) : DB(_db), threshold(_threshold) {}
     Miner(TransactionDB* _db, float _ratio) : DB(_db), threshold(_ratio * _db->size()) {}
     virtual ~Miner()
     {
@@ -29,10 +31,25 @@ public:
             (*i)->print_self();
         }
     }
+    void write_result(ofstream & output)
+    {
+        for (vector<Itemset*>::iterator i = result.begin(); i != result.end(); i++)
+        {
+            (*i)->write_self(output);
+        }
+    }
     virtual void mine()
     {
         result.clear();
         miner_begin = clock();
+    }
+    int result_size()
+    {
+        return int(result.size());
+    }
+    float elapsed_time()
+    {
+        return float(clock() - miner_begin)/CLOCKS_PER_SEC;
     }
     virtual bool check()
     {

@@ -13,6 +13,7 @@ private:
     
 public:
     MINIT(TransactionDB* _db, float _ratio, int _max_c) : Miner(_db, _ratio), max_c(_max_c) {}
+    MINIT(TransactionDB* _db, int _threshold, int _max_c) : Miner(_db, _threshold), max_c(_max_c) {}
     virtual void mine()
     {
         Miner::mine();

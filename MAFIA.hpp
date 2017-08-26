@@ -12,6 +12,7 @@ private:
 public:
     
     MAFIA(TransactionDB* _db, float _ratio) : Miner(_db, _ratio) {}
+    MAFIA(TransactionDB* _db, int _threshold) : Miner(_db, _threshold) {}
     
     bool in_MFI(Itemset_VERTICAL & itemset) //too slow, deprecated
     {
@@ -104,7 +105,10 @@ public:
             {
                 result.push_back(new Itemset_VERTICAL(head));
                 result.back()->sort_self(DB->sort_method);
-                printf("%ld %lus\n", result.size(), (clock()-miner_begin)/CLOCKS_PER_SEC);
+                if (verbose)
+                {
+                    printf("%ld %fs\n", result.size(), elapsed_time());
+                }
                 //head.print_self();
             }
             return FHUT;
