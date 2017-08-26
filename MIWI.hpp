@@ -2,6 +2,7 @@
 
 using namespace std;
 
+#define AMEND 1
 #define PRUNING 1
 
 class MIWI : public Miner
@@ -42,6 +43,7 @@ protected:
     
 public:
     MIWI(TransactionDB* _db, float _ratio) : Miner(_db, _ratio) {}
+    MIWI(TransactionDB* _db, int _threshold) : Miner(_db, _threshold) {}
     ~MIWI()
     {
         delete_tree(tree);
@@ -52,9 +54,11 @@ public:
         Node* root = new Node(NULL, -1, -1);
         for (vector<Itemset*>::iterator i = DB->db.begin(); i != DB->db.end(); i++)
         {
-            // do not delete this comment
-            //insert_tree(root, &items, (*i)->get_tids(), 1);
+#if AMEND
             insert_tree(root, sorted_items, (*i)->get_tids(), 1);
+#else
+            insert_tree(root, &items, (*i)->get_tids(), 1);
+#endif
         }
         return root;
     }
@@ -116,14 +120,17 @@ public:
     {
         for (map<int, Item>::iterator i = form.begin(); i != form.end(); i++)
         {
-            if (form.size() == DB->dim()) {printf("%ld/%ld %lus\n", distance(form.begin(), i), form.size(), (clock()-miner_begin)/CLOCKS_PER_SEC);}
+            if (verbose)
+            {
+                if (form.size() == DB->dim()) {printf("%ld/%ld %lus\n", distance(form.begin(), i), form.size(), (clock()-miner_begin)/CLOCKS_PER_SEC);}
+            }
             pattern->add_item(i->first);
             pattern->support = i->second.support;
             if (pattern->support < threshold)
             {
                 result.push_back(new Itemset_VECTOR(pattern));
                 pattern->delete_item();
-                //continue;
+                continue;
             }
             map<int, Item> next_form;
             Node* next_root = new Node(NULL, -1, -1);
@@ -198,7 +205,10 @@ public:
 #if PRUNING
             if (pruned[item]) {continue;}
 #endif
-            if (depth == 0) {printf("%ld/%ld %.3fs\n", distance(form.begin(), i), form.size(), float(clock()-miner_begin)/CLOCKS_PER_SEC);}
+            if (verbose)
+            {
+                if (depth == 0) {printf("%ld/%ld %fs\n", distance(form.begin(), i), form.size(), elapsed_time());}
+            }
             pattern->add_item(item);
             pattern->support = i->support;
             if (pattern->support < threshold)
@@ -274,18 +284,21 @@ public:
             }
         }
     }
-    void antichain()
+    void antichain()// not working correctly
     {
         clock_t t_begin = clock();
         long average_len = 0, minimal_num = 0, set_num = result.size();
+        vector<Itemset*> filtered_result;
         for (vector<Itemset*>::iterator i = result.begin(); i != result.end(); i++)
         {
             if (min_tree->check_minimal((*i)->get_tids(), DB))
             {
                 minimal_num += 1;
+                filtered_result.push_back(*i);
             }
             average_len += (*i)->get_tids().size();
         }
+        result = filtered_result;
         printf("set_num: %ld minimal_num: %ld average_len: %.4f time: %.4f s\n", set_num, minimal_num, float(average_len)/float(set_num), float(clock()-t_begin)/CLOCKS_PER_SEC);
     }
     virtual void mine()
@@ -298,11 +311,14 @@ public:
             pruned.insert(pair<int, bool>(i->first, false));
         }
         tree = build_tree();
-        printf("build tree done.\n");
+        if (verbose) printf("build tree done.\n");
         min_tree = new M_Node();
+#if AMEND
         dig_tree_stack(0, sorted_items);
-        //dig_tree(tree, items);
+#else
+        dig_tree(tree, items);
         //antichain();
+#endif
         for (vector<Itemset*>::iterator i = result.begin(); i != result.end(); i++)
         {
             (*i)->reverse_self();
