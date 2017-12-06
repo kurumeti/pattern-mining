@@ -1,11 +1,3 @@
-//
-//  main.cpp
-//  test
-//
-//  Created by 郝有峰 on 15/6/12.
-//  Copyright (c) 2015年 郝有峰. All rights reserved.
-//
-
 #include <iostream>
 #include <fstream>
 #include <string>
