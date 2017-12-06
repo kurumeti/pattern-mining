@@ -160,7 +160,7 @@ public:
         transactions.set();
         support = transaction_num;
     }
-    Itemset_VERTICAL(Itemset_VERTICAL & itemset)
+    Itemset_VERTICAL(const Itemset_VERTICAL & itemset)
     {
         tids = itemset.tids;
         transactions = itemset.transactions;
