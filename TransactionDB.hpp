@@ -30,12 +30,12 @@ public:
     {
         return item_bitpos.left.at(item);
     }
-    bool validate_min(vector<Itemset*> & MII) const
+    bool validate_min(const vector<Itemset*> & MII) const
     {
         bool valid = true;
-        for (vector<Itemset*>::iterator i = MII.begin(); i != MII.end(); i++)
+        for (vector<Itemset*>::const_iterator i = MII.begin(); i != MII.end(); i++)
         {
-            for (vector<Itemset*>::iterator j = MII.begin(); j != MII.end(); j++)
+            for (vector<Itemset*>::const_iterator j = MII.begin(); j != MII.end(); j++)
             {
                 if (i == j) {continue;}
                 if ((*j)->is_subset_of(*i))
@@ -50,12 +50,12 @@ public:
         }
         return valid;
     }
-    bool validate_max(vector<Itemset*> & MFI) const
+    bool validate_max(const vector<Itemset*> & MFI) const
     {
         bool valid = true;
-        for (vector<Itemset*>::iterator i = MFI.begin(); i != MFI.end(); i++)
+        for (vector<Itemset*>::const_iterator i = MFI.begin(); i != MFI.end(); i++)
         {
-            for (vector<Itemset*>::iterator j = MFI.begin(); j != MFI.end(); j++)
+            for (vector<Itemset*>::const_iterator j = MFI.begin(); j != MFI.end(); j++)
             {
                 if (i == j) {continue;}
                 if ((*i)->is_subset_of(*j))
@@ -70,13 +70,13 @@ public:
         }
         return valid;
     }
-    vector<Itemset*> filter_non_minimal(vector<Itemset*> & MII) const
+    vector<Itemset*> filter_non_minimal(const vector<Itemset*> & MII) const
     {
         vector<Itemset*> result;
-        for (vector<Itemset*>::iterator i = MII.begin(); i != MII.end(); i++)
+        for (vector<Itemset*>::const_iterator i = MII.begin(); i != MII.end(); i++)
         {
             bool valid = true;
-            for (vector<Itemset*>::iterator j = MII.begin(); j != MII.end(); j++)
+            for (vector<Itemset*>::const_iterator j = MII.begin(); j != MII.end(); j++)
             {
                 if (i == j) {continue;}
                 if ((*j)->is_subset_of(*i))
@@ -92,18 +92,27 @@ public:
         }
         return result;
     }
-    void validate(vector<pair<Itemset*,int>> & itemsets)
+    bool validate(const vector<Itemset*> & result) const
     {
-        for (vector<Itemset*>::iterator i = db.begin(); i != db.end(); i++)
+        bool valid = true;
+        for (vector<Itemset*>::const_iterator i = result.begin(); i != result.end(); i++)
         {
-            for (vector<pair<Itemset*,int>>::iterator j = itemsets.begin(); j != itemsets.end(); j++)
+            int support = 0;
+            for (vector<Itemset*>::const_iterator j = db.begin(); j != db.end(); j++)
             {
-                if (j->first->is_subset_of(*i))
+                if ((*i)->is_subset_of(*j))
                 {
-                    j->second += 1;
+                    support += 1;
                 }
             }
+            if (support != (*i)->support)
+            {
+                printf("true %d | ", support);
+                (*i)->print_self();
+                valid = false;
+            }
         }
+        return valid;
     }
     void count_items(stringstream& ss)
     {
