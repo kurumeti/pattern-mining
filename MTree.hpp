@@ -7,7 +7,7 @@ private:
     
 public:
     M_Node(){}
-    M_Node(vector<int>::iterator l, vector<int>::iterator r)
+    M_Node(vector<int>::const_iterator l, vector<int>::const_iterator r)
     {
         while (l != r)
         {
@@ -24,7 +24,7 @@ public:
         }
         delete temp;
     }
-    bool insert_tree(M_Node* temp, vector<int>& tids, vector<int>::iterator v)
+    bool insert_tree(M_Node* temp, const vector<int> & tids, vector<int>::iterator v)
     {
         bool children_covered = false;
         vector<int>::iterator i = temp->path.begin();
@@ -69,7 +69,7 @@ public:
         }
         return true;
     }
-    bool check_minimal(const vector<int>& tids, TransactionDB* DB)
+    bool check_minimal(const vector<int> & tids, TransactionDB* DB)
     {
         vector<int> ranks;
         for (vector<const int>::iterator i = tids.begin(); i != tids.end(); i++)
@@ -84,7 +84,7 @@ public:
         }
         return false;
     }
-    bool check_min_tree(M_Node* temp, vector<int>& tids, vector<int>::iterator v)
+    bool check_min_tree(M_Node* temp, const vector<int> & tids, vector<int>::iterator v)
     {
         vector<int>::iterator i = temp->path.begin();
         while (i != temp->path.end() && v != tids.end())
@@ -109,7 +109,7 @@ public:
         }
         return false;
     }
-    bool check_max_tree(M_Node* temp, vector<int>& tids, vector<int>::iterator v)
+    bool check_max_tree(M_Node* temp, const vector<int> & tids, vector<int>::iterator v)
     {
         vector<int>::iterator i = temp->path.begin();
         while (i != temp->path.end() && v != tids.end())
@@ -137,7 +137,7 @@ public:
         }
         return false;
     }
-    bool check_maximal(const vector<int>& tids, TransactionDB* DB, bool no_insert = false)
+    bool check_maximal(const vector<int> & tids, TransactionDB* DB, bool no_insert = false)
     {
         vector<int> ranks;
         for (vector<const int>::iterator i = tids.begin(); i != tids.end(); i++)

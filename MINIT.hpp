@@ -20,6 +20,10 @@ public:
         vector<bool> V(DB->dim(), true);
         result = minit(DB, V, max_c);
     }
+    virtual bool check() const
+    {
+        return check_basic() && check_threshold(false) && DB->validate_max(result);
+    }
     vector<Itemset*> minit(TransactionDB* D, vector<bool> & V, int max_c)
     {
         vector<Itemset*> M;

@@ -42,6 +42,8 @@ protected:
     map<int, bool> pruned;
     
 public:
+    int raw_num = 0;
+    float filter_time = 0.0;
     MIWI(TransactionDB* _db, float _ratio) : Miner(_db, _ratio) {}
     MIWI(TransactionDB* _db, int _threshold) : Miner(_db, _threshold) {}
     ~MIWI()
@@ -62,14 +64,14 @@ public:
         }
         return root;
     }
-    void print_form(map<int, Item>& form)
+    void print_form(const map<int, Item>& form)
     {
-        for (map<int, Item>::iterator i = form.begin(); i != form.end(); i++)
+        for (map<int, Item>::const_iterator i = form.begin(); i != form.end(); i++)
         {
             printf("%d %d\n", i->first, i->second.support);
         }
     }
-    void insert_tree(Node* temp, map<int, Item>* form, const vector<int>& tids, int count)
+    void insert_tree(Node* temp, map<int, Item>* form, const vector<int> & tids, int count)
     {
         for (vector<const int>::iterator j = tids.begin(); j != tids.end(); j++)
         {
@@ -88,7 +90,7 @@ public:
             }
         }
     }
-    void insert_tree(Node* temp, vector<Item>& sorted_form, const vector<int>& tids, int count)
+    void insert_tree(Node* temp, vector<Item> & sorted_form, const vector<int> & tids, int count)
     {
         for (vector<const int>::iterator j = tids.begin(); j != tids.end(); j++)
         {
@@ -116,9 +118,9 @@ public:
         }
         delete temp;
     }
-    void dig_tree(Node* root, map<int, Item>& form)
+    void dig_tree(Node* root, const map<int, Item> & form)
     {
-        for (map<int, Item>::iterator i = form.begin(); i != form.end(); i++)
+        for (map<int, Item>::const_iterator i = form.begin(); i != form.end(); i++)
         {
             if (verbose)
             {
@@ -139,7 +141,7 @@ public:
                 if (j->first == i->first) {break;}
                 next_form.insert(pair<int, Item>(j->first, Item(0)));
             }
-            for (vector<Node*>::iterator j = i->second.link.begin(); j != i->second.link.end(); j++)
+            for (vector<Node*>::const_iterator j = i->second.link.begin(); j != i->second.link.end(); j++)
             {
                 Node* temp = (*j)->father;
                 vector<int> tids;
@@ -157,7 +159,7 @@ public:
             delete_tree(next_root);
         }
     }
-    void identify_leafs(int depth, Node* temp, vector<Node*>& leafs)
+    void identify_leafs(int depth, Node* temp, vector<Node*> & leafs)
     {
         if (temp->depth != depth)
         {
@@ -172,7 +174,7 @@ public:
             identify_leafs(depth, i->second, leafs);
         }
     }
-    void identify_pruned(int depth, vector<Item>& form, vector<int>& pruned_items)
+    void identify_pruned(int depth, const vector<Item> & form, vector<int> & pruned_items)
     {
         vector<bool> temp_form(form.size(), true);
         vector<Node*> leafs;
@@ -187,7 +189,7 @@ public:
                 temp = temp->father;
             }
         }
-        for (vector<Item>::iterator i = form.begin(); i != form.end(); i++)
+        for (vector<Item>::const_iterator i = form.begin(); i != form.end(); i++)
         {
             if (!temp_form[i-form.begin()])
             {
@@ -195,11 +197,11 @@ public:
             }
         }
     }
-    void dig_tree_stack(int depth, vector<Item>& form)
+    void dig_tree_stack(int depth, const vector<Item> & form)
     {
         //DB->print_itemset(pattern);
         vector<Item> sorted_form;
-        for (vector<Item>::iterator i = form.begin(); i != form.end(); i++)
+        for (vector<Item>::const_iterator i = form.begin(); i != form.end(); i++)
         {
             int item = DB->sorted_items[int(i-form.begin())].first;
 #if PRUNING
@@ -213,11 +215,14 @@ public:
             pattern->support = i->support;
             if (pattern->support < threshold)
             {
+                raw_num += 1;
+                unsigned long _begin_time = clock();
                 if (min_tree->check_minimal(pattern->get_tids(), DB))
                 {
                     result.push_back(new Itemset_VECTOR(pattern));
                     //DB->print_itemset(pattern);
                 }
+                filter_time += float(clock()-_begin_time)/CLOCKS_PER_SEC;
 //                else
 //                {
 //                    printf("non-minimal: ");
@@ -233,7 +238,7 @@ public:
                 if (j->first == item) {break;}
                 next_form.push_back(Item(0));
             }
-            for (vector<Node*>::iterator j = i->link.begin(); j != i->link.end(); j++)
+            for (vector<Node*>::const_iterator j = i->link.begin(); j != i->link.end(); j++)
             {
                 Node* temp = (*j)->father;
                 while (temp != tree)
@@ -270,7 +275,7 @@ public:
                 pruned[*j] = false;
             }
 #endif
-            for (vector<Node*>::iterator j = i->link.begin(); j != i->link.end(); j++)
+            for (vector<Node*>::const_iterator j = i->link.begin(); j != i->link.end(); j++)
             {
                 Node* temp = (*j)->father;
                 while (temp != tree)
@@ -323,5 +328,9 @@ public:
         {
             (*i)->reverse_self();
         }
+    }
+    virtual bool check() const
+    {
+        return check_basic() && check_threshold(false) && DB->validate_max(result);
     }
 };
