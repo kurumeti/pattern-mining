@@ -27,22 +27,22 @@ public:
         return false;
     }
     
-    bool HUTMFI(Itemset_VERTICAL & head, deque<pair<Itemset_VERTICAL_UNIT*,int>> & tail)
+    bool HUTMFI(const Itemset_VERTICAL & head, const deque<pair<Itemset_VERTICAL_UNIT*,int>> & tail)
     {
         Itemset_VERTICAL HUT(head);
-        for (deque<pair<Itemset_VERTICAL_UNIT*,int>>::iterator i = tail.begin(); i != tail.end(); i++)
+        for (deque<pair<Itemset_VERTICAL_UNIT*,int>>::const_iterator i = tail.begin(); i != tail.end(); i++)
         {
             HUT.add_item(i->first->item);
         }
         return !max_tree->check_maximal(HUT.get_tids(), DB, true);
     }
     
-    void print_state(Itemset_VERTICAL & head, deque<pair<Itemset_VERTICAL_UNIT*,int>> & tail, bool is_HUT)
+    void print_state(const Itemset_VERTICAL & head, const deque<pair<Itemset_VERTICAL_UNIT*,int>> & tail, bool is_HUT)
     {
         cout << "is_HUT: " << is_HUT << ", head: ";
         head.print_self();
         cout << "tail: ";
-        for (deque<pair<Itemset_VERTICAL_UNIT*,int>>::iterator i = tail.begin(); i != tail.end(); i++)
+        for (deque<pair<Itemset_VERTICAL_UNIT*,int>>::const_iterator i = tail.begin(); i != tail.end(); i++)
         {
             cout << "(" << i->first->item << ", " << i->second << ")";
         }
@@ -128,33 +128,9 @@ public:
         }
         return FHUT;
     }
-    virtual bool check()
+    virtual bool check() const
     {
-        printf("Miner done. result num: %ld\nEnter any key to validate result...\n", result.size());
-        cin.get();
-        bool valid = true;
-        vector<pair<Itemset*,int>> itemsets;
-        for (vector<Itemset*>::iterator i = result.begin(); i != result.end(); i++)
-        {
-            itemsets.push_back(pair<Itemset*,int>(*i,0));
-        }
-        DB->validate(itemsets);
-        for (vector<pair<Itemset*,int>>::iterator i = itemsets.begin(); i != itemsets.end(); i++)
-        {
-            if (i->second != i->first->support)
-            {
-                valid = false;
-                printf("true %d ", i->second);
-                i->first->print_self();
-            }
-            if (i->first->support < threshold)
-            {
-                valid = false;
-                printf("threshold %d:", threshold);
-                i->first->print_self();
-            }
-        }
-        return (valid && DB->validate_max(result));
+        return check_basic() && check_threshold(true) && DB->validate_max(result);
     }
     ~MAFIA()
     {

@@ -51,32 +51,25 @@ public:
     {
         return float(clock() - miner_begin)/CLOCKS_PER_SEC;
     }
-    virtual bool check()
+    bool check_threshold(bool frequent) const
+    {
+        bool valid = true;
+        for (vector<Itemset*>::const_iterator i = result.begin(); i != result.end(); i++)
+        {
+            if ((frequent && (*i)->support < threshold) || (!frequent && (*i)->support >= threshold))
+            {
+                valid = false;
+                printf("threshold %d | ", threshold);
+                (*i)->print_self();
+            }
+        }
+        return valid;
+    }
+    bool check_basic() const
     {
         printf("Miner done. result num: %ld\nEnter any key to validate result...\n", result.size());
         cin.get();
-        bool valid = true;
-        vector<pair<Itemset*,int>> itemsets;
-        for (vector<Itemset*>::iterator i = result.begin(); i != result.end(); i++)
-        {
-            itemsets.push_back(pair<Itemset*,int>(*i,0));
-        }
-        DB->validate(itemsets);
-        for (vector<pair<Itemset*,int>>::iterator i = itemsets.begin(); i != itemsets.end(); i++)
-        {
-            if (i->second != i->first->support)
-            {
-                valid = false;
-                printf("true %d ", i->second);
-                i->first->print_self();
-            }
-            if (i->first->support >= threshold)
-            {
-                valid = false;
-                printf("threshold %d:", threshold);
-                i->first->print_self();
-            }
-        }
-        return (valid && DB->validate_min(result));
+        return DB->validate(result);
     }
+    virtual bool check() const {return false;}
 };
